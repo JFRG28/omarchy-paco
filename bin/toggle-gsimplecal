@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Desired window size (should match Hypr rules)
+CAL_W=320
+CAL_H=260
+MARGIN_Y=6
+
+if pidof gsimplecal >/dev/null 2>&1; then
+  pkill gsimplecal || true
+  exit 0
+fi
+
+# Launch calendar and capture PID
+gsimplecal >/dev/null 2>&1 &
+CAL_PID=$!
+
+# Wait for window to appear
+for i in {1..80}; do
+  # Prefer matching by PID of the process we just launched
+  addr=$(hyprctl clients -j | jq -r --arg pid "$CAL_PID" '.[] | select((.pid|tostring) == $pid) | .address' | head -n1 || true)
+  if [ -n "${addr:-}" ] && [ "${addr}" != "null" ]; then
+    break
+  fi
+  # fallback: class/title contains gsimplecal
+  addr=$(hyprctl clients -j | jq -r '.[] | select((.class|tostring|ascii_downcase|test("gsimplecal")) or (.title|tostring|ascii_downcase|test("gsimplecal"))) | .address' | head -n1 || true)
+  if [ -n "${addr:-}" ] && [ "${addr}" != "null" ]; then
+    break
+  fi
+  sleep 0.05
+done
+
+if [ -z "${addr:-}" ] || [ "${addr}" = "null" ]; then
+  exit 0
+fi
+
+# Compute position: directly below cursor, clamped to focused monitor
+read CX CY < <(hyprctl cursorpos | grep -oE '[0-9]+' | xargs | awk '{print $1, $2}')
+read MON_X MON_Y MON_W MON_H < <(hyprctl monitors -j | jq -r '.[] | select(.focused==true) | "\(.x) \(.y) \(.width) \(.height)"')
+
+X=$(( CX - CAL_W / 2 ))
+Y=$(( CY + MARGIN_Y ))
+
+if [ $X -lt $MON_X ]; then X=$MON_X; fi
+MAX_X=$(( MON_X + MON_W - CAL_W ))
+if [ $X -gt $MAX_X ]; then X=$MAX_X; fi
+
+MAX_Y=$(( MON_Y + MON_H - CAL_H ))
+if [ $Y -gt $MAX_Y ]; then Y=$MAX_Y; fi
+
+# Move repeatedly to override any initial centering by the app/WM
+for i in {1..10}; do
+  hyprctl dispatch movewindowpixel exact ${X} ${Y} address:${addr} || true
+  sleep 0.03
+done
+
+

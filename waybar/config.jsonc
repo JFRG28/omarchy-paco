@@ -5,7 +5,7 @@
   "spacing": 0,
   "height": 26,
   "modules-left": ["custom/omarchy", "hyprland/workspaces"],
-  "modules-center": ["clock", "custom/update", "custom/screenrecording-indicator"],
+  "modules-center": ["custom/clock", "custom/update", "custom/screenrecording-indicator"],
   "modules-right": [
     "group/tray-expander",
     "bluetooth",
@@ -57,10 +57,11 @@
     "format": "󰍛",
     "on-click": "$TERMINAL -e btop"
   },
-  "clock": {
-    "format": "{:L%A %H:%M}",
-    "format-alt": "{:L%d %B W%V %Y}",
-    "tooltip": false,
+  "custom/clock": {
+    "exec": "/home/paco/Documents/omarchy-paco/waybar/scripts/clock-tooltip.sh",
+    "return-type": "json",
+    "interval": 30,
+    "on-click": "/home/paco/Documents/omarchy-paco/bin/toggle-gsimplecal",
     "on-click-right": "omarchy-cmd-tzupdate"
   },
   "network": {
